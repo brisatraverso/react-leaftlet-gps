@@ -1,0 +1,25 @@
+{
+    "places": [
+        {
+            "name":"Plaza Ramírez",
+            "geometry": [
+                -32.484632,
+                -58.232179
+            ]
+        },
+        {
+            "name":"Plaza San MArtín",
+            "geometry": [
+                -32.480088,
+                -58.234285
+            ]
+        },
+        {
+            "name":"Plaza Constitución",
+            "geometry": [
+                -32.490722,
+                -58.229153
+            ]
+        }
+    ]
+}
