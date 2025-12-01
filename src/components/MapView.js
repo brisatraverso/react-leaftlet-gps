@@ -5,56 +5,102 @@ import "leaflet/dist/leaflet.css";
 import { useNavigate } from "react-router-dom";
 import "../styles/MapView.css";
 
-// Importar icono personalizado
+import { db } from "../firebaseConfig";
+import { ref, onValue, off } from "firebase/database";
+
 import icono from "../assets/icono.png";
 
-// Crear el ícono Leaflet
 const vehicleIcon = new L.Icon({
   iconUrl: icono,
   iconSize: [30, 30],
-  iconAnchor: [20, 40],
-  popupAnchor: [0, -35],
+  iconAnchor: [15, 30],
+  popupAnchor: [0, -25],
 });
+
+const UpdateMapView = ({ position }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.setView(position);
+  }, [position, map]);
+  return null;
+};
 
 const MapView = () => {
   const navigate = useNavigate();
   const [path, setPath] = useState([]);
-  const [currentPos, setCurrentPos] = useState([-32.4828, -58.2368]);
+  const [currentPos, setCurrentPos] = useState(null);
+  const [info, setInfo] = useState({ lat: null, lng: null, timestamp: null });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPos((prev) => {
-        const latOffset = (Math.random() - 0.5) * 0.001;
-        const lngOffset = (Math.random() - 0.5) * 0.001;
-        return [prev[0] + latOffset, prev[1] + lngOffset];
-      });
-    }, 1200);
+    const deviceId = "vehiculo1";
+    const vehiculoRef = ref(db, `datos/${deviceId}`);
 
-    return () => clearInterval(interval);
+    const listener = onValue(vehiculoRef, (snapshot) => {
+      const data = snapshot.val();
+      if (!data) return;
+
+      console.log("DATA OBTENIDA:", data);
+
+      const lat = Number(data.lat);
+      const lng = Number(data.lng);
+      const timestamp = Number(data.timestamp);
+
+      const newPos = [lat, lng];
+
+      // Actualizar estados
+      setCurrentPos(newPos);
+      setInfo({ lat, lng, timestamp });
+      setPath((prev) => [...prev, newPos]); // Guardamos recorrido
+    });
+
+    return () => off(vehiculoRef, "value", listener);
   }, []);
 
-  // Este segundo efecto se encarga de ir guardando las posiciones en el path
-  useEffect(() => {
-    setPath((prevPath) => [...prevPath, currentPos]);
-  }, [currentPos]);
+  const formatDate = (ts) => {
+    if (!ts) return "Sin datos";
+    return new Date(ts).toLocaleString("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      hour12: false,
+    });
+  };
 
   return (
     <div className="map-container">
-      <button className="back-btn" onClick={() => navigate("/")}>
-        Volver
-      </button>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="back-btn" onClick={() => navigate("/")}>
+          Salir
+        </button>
+        <button className="history-btn" onClick={() => navigate("/history")}>
+          Ver historial
+        </button>
+      </div>
 
-      <MapContainer center={currentPos} zoom={15} className="map">
+      <MapContainer center={[-32.4828, -58.2368]} zoom={15} className="map">
         <TileLayer
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; OpenStreetMap contributors'
         />
 
-        <Polyline positions={path} color="blue" />
-        <Marker position={currentPos} icon={vehicleIcon}>
-          <Popup>Vehículo en movimiento</Popup>
-        </Marker>
+        {currentPos && <UpdateMapView position={currentPos} />}
+        {path.length > 1 && <Polyline positions={path} />}
+
+        {currentPos && (
+          <Marker position={currentPos} icon={vehicleIcon}>
+            <Popup>
+              <b>Vehículo 🛰</b> <br />
+              Lat: {info.lat.toFixed(6)} <br />
+              Lng: {info.lng.toFixed(6)} <br />
+              Fecha y hora: {formatDate(info.timestamp)}
+            </Popup>
+          </Marker>
+        )}
       </MapContainer>
+
+      <div className="data-panel">
+        <p>Latitud: {info.lat}</p>
+        <p>Longitud: {info.lng}</p>
+        <p>Fecha: {formatDate(info.timestamp)}</p>
+      </div>
     </div>
   );
 };
